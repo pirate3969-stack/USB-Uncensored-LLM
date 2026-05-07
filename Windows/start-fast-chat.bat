@@ -2,6 +2,31 @@
 title Portable AI - Fast Web Chat
 color 0B
 
+:: -------------------------------------------------------
+:: CMD BOOT LOGO
+:: -------------------------------------------------------
+cls
+echo.
+
+echo(
+echo  PPPP   OOO  RRRR  TTTTT  AAA  BBBB  L     EEEE      AA  III
+echo  P   P O   O R   R   T   A   A B   B L     E        A  A  I 
+echo  PPPP  O   O RRRR    T   AAAAA BBBB  L     EEE      AAAA  I 
+echo  P     O   O R R     T   A   A B   B L     E        A  A  I 
+echo  P      OOO  R  R    T   A   A BBBB  LLLLL EEEE     A  A III
+echo(
+echo   FAST - LOCAL - OFFLINE  - USB - PRIVACY - POWER - FREEDOM
+echo(
+echo       CREATED BY TECHJARVES  +  MODIFIED BY PIRATE3969
+echo(
+echo      >> Initialising subsystems...
+echo      >> Loading runtime modules...
+echo      >> Preparing inference engine...
+echo      >> Linking neural pathways...
+echo.
+timeout /t 7 >nul
+cls
+
 echo ===================================================
 echo     Portable AI - Fast Web Chat Mode
 echo ===================================================
