@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """
-Portable AI Chat Server
-=======================
-A zero-dependency Python HTTP server that:
-  1. Serves the FastChatUI.html web interface
-  2. Saves/loads chat history as JSON files on the USB drive
-  3. Proxies all Ollama API requests (eliminates CORS issues)
+================================================================================
+PORTABLE AI — CHAT SERVER (FINAL STABLE VERSION)
+================================================================================
+Features:
+  • Zero Dependencies (Pure Python Standard Library)
+  • USB Portable (Runs directly from USB drive)
+  • GPU/CPU Auto-Detect (AMD HIP + Standard Ollama)
+  • Smart Model Naming (Maps technical tags to friendly filenames)
+  • Chat Persistence (Auto-saves to USB JSON)
+  • Hardware Stats (CPU/RAM monitoring without external libs)
+  • CORS Enabled (Works with local HTML files)
 
-Works on Windows, macOS, and Linux without installing anything.
+Author: Portable AI Team
+Version: 2.0 (Stable)
+================================================================================
 """
-
 import http.server
 import json
 import os
@@ -33,10 +39,90 @@ except ImportError:
 
 # ── Configuration ──────────────────────────────────────────────
 CHAT_SERVER_PORT = 3333
+
+# Default values (will be overridden by auto-detect)
 OLLAMA_HOST = "http://127.0.0.1:11434"
-LLAMA_CPP_MODE = "--llama-cpp" in sys.argv
-if LLAMA_CPP_MODE:
-    OLLAMA_HOST = "http://127.0.0.1:8080"
+LLAMA_CPP_MODE = False
+
+# ── Automatic Backend Detection (GPU → CPU fallback) ─────────────────────────────
+
+def _port_open(port):
+    import socket
+    s = socket.socket()
+    s.settimeout(0.2)
+    try:
+        s.connect(("127.0.0.1", port))
+        s.close()
+        return True
+    except:
+        return False
+
+# GPU backend (llamafile / HIP ROCm)
+GPU_PORT = 8080
+
+# CPU Ollama backend
+CPU_PORT = 11434
+
+# Auto-detect which backend is running
+if _port_open(GPU_PORT):
+    print(f"  GPU backend detected on port {GPU_PORT} — using GPU mode")
+    OLLAMA_HOST = f"http://127.0.0.1:{GPU_PORT}"
+    LLAMA_CPP_MODE = True   # REQUIRED for llama.cpp GPU backend
+elif _port_open(CPU_PORT):
+    print(f"  CPU Ollama detected on port {CPU_PORT} — using CPU mode")
+    OLLAMA_HOST = f"http://127.0.0.1:{CPU_PORT}"
+    LLAMA_CPP_MODE = False
+else:
+    print("  ERROR: No backend detected on 8080 or 11434")
+    OLLAMA_HOST = "http://127.0.0.1:11434"
+    LLAMA_CPP_MODE = False
+
+# ── Backend Summary (Console Output Only) ───────────────────────────────────────
+
+import subprocess
+import json
+
+def print_backend_summary():
+    backend = "GPU" if LLAMA_CPP_MODE else "CPU"
+    print("")
+    print("────────────────────────────────────────────")
+    print(f" Active Backend: {backend}")
+    print(f" Backend URL:    {OLLAMA_HOST}")
+
+    if backend == "GPU":
+        try:
+            # Query VRAM via Windows WMI
+            result = subprocess.run(
+                ["wmic", "path", "win32_VideoController", "get", "AdapterRAM"],
+                capture_output=True,
+                text=True
+            )
+            lines = result.stdout.strip().splitlines()
+
+            # Find the first numeric line (VRAM in bytes)
+            vram_bytes = None
+            for line in lines:
+                line = line.strip()
+                if line.isdigit():
+                    vram_bytes = int(line)
+                    break
+
+            if vram_bytes:
+                total_mb = vram_bytes // (1024 * 1024)
+                print(f" GPU VRAM:       {total_mb} MB total (usage not available on Windows)")
+            else:
+                print(" GPU VRAM:       Unable to read VRAM info")
+
+        except Exception as e:
+            print(f" GPU VRAM:       Error reading VRAM info ({e})")
+    else:
+        print(" GPU VRAM:       Not applicable (CPU backend active)")
+
+    print("────────────────────────────────────────────")
+    print("")
+
+# Print summary on startup
+print_backend_summary()
 
 # Always resolve paths relative to THIS script's location (the USB drive)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -230,6 +316,12 @@ class ChatHandler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/settings":
             self._save_settings()
+
+        elif path == "/api/chat":
+            # Forward UI chat requests to Ollama
+            self.path = "/ollama/api/chat"
+            self._proxy_ollama("POST")
+            return
 
         # Proxy Ollama API
         elif path.startswith("/ollama/"):
